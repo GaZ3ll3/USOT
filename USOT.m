@@ -1,5 +1,9 @@
+
 [p,t,e, P,T,E] = MeshGen('prq32.0a0.0001zeB',[0. 0.; 1. 0.; 1. 1.; 0. 1.]');
+
 [I,J,U,V] = MatrixAssem(p,t,P,T);
+
+
 S = sparse(I,J,V);
 M = sparse(I,J,U);
 
@@ -75,5 +79,8 @@ figure(3);
 trisurf(T' + 1,P(1,:),P(2,:),ratio*real(Estimate.*conj(Estimate)) -real(Sol.*conj(Sol)) ,'EdgeColor','none');
 shading interp
 colorbar;
+
 Energy = sigma*Sol.*conj(Sol);
+
+
 

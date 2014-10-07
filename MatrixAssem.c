@@ -62,6 +62,7 @@ void  mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	REAL area;
 	REAL det;
 
+#pragma omp parallel for
 	for (i = 0; i < *nt; i++)
 	{
 		node_1 = tri[3*i];

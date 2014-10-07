@@ -105,9 +105,25 @@ MATLAB_LIBS = -Wl,-rpath-link,$(MATLAB)/bin/glnxa64 \
 
 RM = /bin/rm
 
+
+
+
+SRCS = $(wildcard $(BIN)*.c)
+OBJS = $(patsubst $(BIN)%.c, %.o, $(SRCS))
+BINS = $(patsubst $(BIN)%.c, %.mexa64, $(SRCS))
+
+
+$(BIN)%.o: $(BIN)%.c
+	$(CC) $(MATLAB_INCLUDES) $(MATLAB_FLAGS) -c $< -o $@
+
+$(BIN)%.mexa64: $(BIN)%.o $(SRC)triangle.o
+	$(CC) -O $(MATLAB_LINKS) -o $@ $< $(SRC)triangle.o $(MATLAB_LIBS)
+
 # The action starts here.
 
-all: $(BIN)MeshGen.mexa64 $(SRC)triangle.o $(BIN)MatrixAssem.mexa64 clean
+# all: $(BIN)MeshGen.mexa64 $(SRC)triangle.o $(BIN)MatrixAssem.mexa64 $(BIN)BCAssem.mexa64 clean
+
+all: $(BINS) clean
 
 $(SRC)triangle.o: $(SRC)triangle.c $(SRC)triangle.h
 	$(CC) $(CSWITCHES) $(TRILIBDEFS) -c -o $(SRC)triangle.o \
@@ -116,16 +132,8 @@ $(SRC)triangle.o: $(SRC)triangle.c $(SRC)triangle.h
 $(BIN)MeshGen.mexa64: $(SRC)triangle.o $(BIN)MeshGen.o 
 	$(CC) -O $(MATLAB_LINKS) -o $(BIN)MeshGen.mexa64 $(BIN)MeshGen.o $(SRC)triangle.o $(MATLAB_LIBS)
  
-
-$(BIN)MeshGen.o: $(BIN)MeshGen.c
-		$(CC) -c $(MATLAB_INCLUDES) $(MATLAB_FLAGS) $(BIN)MeshGen.c
-		
-
-$(BIN)MatrixAssem.mexa64: $(BIN)MatrixAssem.o
-		$(CC) -O $(MATLAB_LINKS) -o $(BIN)MatrixAssem.mexa64 $(BIN)MatrixAssem.o  $(MATLAB_LIBS)
-
-$(BIN)MatrixAssem.o:
-		$(CC) -c $(MATLAB_INCLUDES) $(MATLAB_FLAGS) $(BIN)MatrixAssem.c
-
 clean:
-	rm -rf $(BIN)MeshGen.o $(SRC)triangle.o $(BIN)MatrixAssem.o $(BIN)*.mexa64
+	rm -rf $(BIN)*.o $(SRC)triangle.o 
+	
+distclean: clean
+	rm -rf $(BIN)*.mexa64
