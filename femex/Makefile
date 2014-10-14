@@ -17,20 +17,27 @@ MATLAB_LINKS = -O -pthread -shared\
 CXX_LIBS = -Wl,-rpath-link,/usr/local/MATLAB/MATLAB_Production_Server/R2013a/bin/glnxa64 \
 		   -L/usr/local/MATLAB/MATLAB_Production_Server/R2013a/bin/glnxa64 -lmx -lmex -lmat -lm
 		   
-		   
+	
+	
+# Common use
+########################################################
+
+	
+########################################################		   
 		   
 SRC = src/
-# mesh 
+
+# mesh  build
 MESH = $(SRC)Mesh/private/
 TRIANGLELIB = $(MESH)triangle/
 MESH_SRCS = $(wildcard $(MESH)*.cc)
-MESH_OBJS = $(patsubst $(MESH)%.cc, %.o, $(MESH_SRCS))
+MESH_OBJS = $(patsubst $(MESH)%.cc, %.mesh.o, $(MESH_SRCS))
 MESH_BINS = $(patsubst $(MESH)%.cc, $(MESH)%_.mexa64, $(MESH_SRCS))
 
-%.o: $(MESH)%.cc
+%.mesh.o: $(MESH)%.cc 
 	$(CXX) -c $(CXX_INCLUDE) $(CXX_FLAGS) $< -o $@
 
-$(MESH)%_.mexa64: %.o $(TRIANGLELIB)triangle.o
+$(MESH)%_.mexa64: %.mesh.o $(TRIANGLELIB)triangle.o
 	$(CXX) $(MATLAB_LINKS) -o $@ $< $(TRIANGLELIB)triangle.o $(CXX_LIBS)
 	
 	
@@ -43,13 +50,38 @@ $(TRIANGLELIB)triangle.o:$(TRIANGLELIB)triangle.c $(TRIANGLELIB)triangle.h
 	$(CC) $(CSWITCHES) $(TRILIBDEFS) -c -o $(TRIANGLELIB)triangle.o \
 	$(TRIANGLELIB)triangle.c 
 
+# Integrator build
+
+INT = $(SRC)Integrator/private/
+INT_SRCS = $(wildcard $(INT)*.cc)
+INT_OBJS = $(patsubst $(INT)%.cc, %.int.o, $(INT_SRCS))
+INT_BINS = $(patsubst $(INT)%.cc, $(INT)%_.mexa64, $(INT_SRCS))
+
+%.int.o: $(INT)%.cc
+	$(CXX) -c $(CXX_INCLUDE) $(CXX_FLAGS) $< -o $@
+
+$(INT)%_.mexa64: %.int.o
+	$(CXX) $(MATLAB_LINKS) -o $@ $< $(CXX_LIBS)
+
+
+# Assembler build
+
+ASR = $(SRC)Assembler/private/
+ASR_SRCS = $(wildcard $(ASR)*.cc)
+ASR_OBJS = $(patsubst $(ASR)%.cc, %.asr.o, $(ASR_SRCS))
+ASR_BINS = $(patsubst $(ASR)%.cc, $(ASR)%_.mexa64, $(ASR_SRCS))
+
+%.asr.o: $(ASR)%.cc
+	$(CXX) -c $(CXX_INCLUDE) $(CXX_FLAGS) $< -o $@
+$(ASR)%_.mexa64: %.asr.o
+	$(CXX) $(MATLAB_LINKS) -o $@ $< $(CXX_LIBS)
 
 
 # The action starts here.
 
 # all: $(BIN)MeshGen.mexa64 $(SRC)triangle.o $(BIN)MatrixAssem.mexa64 $(BIN)BCAssem.mexa64 clean
 
-all: $(MESH_BINS)
+all: $(MESH_BINS) $(ASR_BINS) $(INT_BINS)
 
 clean:
-	rm -rf $(MESH)*_.mexa64 
+	rm -rf $(MESH)*_.mexa64 $(INT)*_.mexa64 $(ASR)*_.mexa64 

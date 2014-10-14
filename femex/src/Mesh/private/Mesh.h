@@ -1,25 +1,78 @@
 /*
  * Mesh.h
  *
- *  Created on: Oct 8, 2014
+ *  Created on: Oct 10, 2014
  *      Author: lurker
  */
 
-#ifndef MESH_H_
-#define MESH_H_
+#ifndef MESH_PRIVATE_MESH_H_
+#define MESH_PRIVATE_MESH_H_
+
+#include <iostream>
+#include <iterator>
+#include <string.h>
+
+#include <unordered_map>
+#include <unordered_set>
+
+#include <mexplus.h>
+#include <pprint.h>
+
+
+#define ANSI_DECLARATORS 1
+
+#ifdef SINGLE
+#define REAL float
+#else /* not SINGLE */
+#define REAL double
+#endif /* not SINGLE */
+
+#define VOID int
+
+extern "C"
+{
+#include "triangle/triangle.h"
+}
+
 
 
 using namespace std;
+using namespace mexplus;
 
-template <class T> class Matrix
-{
+
+#define FEMEX_EXPECT(condition) if (!(condition)) \
+    mexErrMsgTxt(#condition " not true.")
+
+
+typedef	struct Topology {
+		vector<double> nodes;
+		unordered_map<std::string, vector<int>> edges;
+		vector<int>    elems;
+} Topology;
+
+class Mesh {
 public:
-	T* data;
-	size_t m;
-	size_t n;
+	Mesh(mxArray* boundary, mxArray* min_area);
+	virtual ~Mesh();
+/*
+ * Members
+ */
+	struct triangulateio MeshData;
+	REAL Min_Area;
+	Topology* topology;
+/*
+ * Methods
+ *
+ * Refine: generate linear Lagrange element mesh
+ *
+ *
+ */
+	void Refine();
+	void Promote(int);
 
-	T& operator()(size_t i, size_t j) {return data[(i - 1)*m + (j - 1)];};
+private:
+	void clear();
 };
 
 
-#endif /* MESH_H_ */
+#endif /* MESH_PRIVATE_MESH_H_ */
