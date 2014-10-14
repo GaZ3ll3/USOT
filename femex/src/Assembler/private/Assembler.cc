@@ -62,7 +62,9 @@ MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 	plhs[1] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 	plhs[2] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 
-
+/*
+ *  Temporary Arrays, will be destroyed later.
+ */
 	mxArray* Vander = mxCreateNumericMatrix(numberofpoints,numberofpoints,mxDOUBLE_CLASS, mxREAL);
 	mxArray* VanderF = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 	mxArray* VanderX = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
@@ -156,6 +158,9 @@ MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 	mxArray** LHS_y = &plhs[2];
 	mexCallMATLAB(1, LHS_y, 2, RHS_y, "mldivide");
 
+	/*
+	 *Destroy arrays
+	 */
 	mxDestroyArray(Vander);
 	mxDestroyArray(VanderF);
 	mxDestroyArray(VanderX);
@@ -349,8 +354,6 @@ MEX_DEFINE(assemsa)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 * do both at same time, if it is needed.(always do).
 	 */
 }
-
-
 
 }
 

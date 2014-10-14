@@ -21,15 +21,19 @@ methods
       Mesh_('clear', this.id_);
   end
 
-  function report(this)
+  function report(this, verbose)
       assert(isscalar(this));
+
       Mesh_('report', this.id_);
+      
+      
+      
   end
   
-  function [nodes, edges] = promote(this, degree)
+  function [nodes, elems, segs] = promote(this, degree)
   %PUT Save something to the database.
     assert(isscalar(this));
-    [nodes, edges] = Mesh_('promote', this.id_, degree);
+    [nodes, elems, segs] = Mesh_('promote', this.id_, degree);
   end
 
   function [np, nt, ne, nodes, elems, segs, edges] = export(this)

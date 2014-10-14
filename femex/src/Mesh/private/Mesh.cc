@@ -14,6 +14,8 @@ Mesh::Mesh(mxArray* boundary, mxArray* min_area){
 	 */
 	Min_Area = *(double *)(mxGetData(min_area));
 	topology = new Topology;
+
+
 	size_t coordinate_length = mxGetM(boundary)/2;
 	auto boundary_ptr = mxGetPr(boundary);
 	/*
@@ -104,23 +106,34 @@ void Mesh::Refine() {
 
 void Mesh::Promote(int deg){
 
+	/*
+	 *  Clear topology for next use
+	 */
 	topology->nodes.clear();
 	topology->elems.clear();
 	topology->edges.clear();
+	topology->boundary.clear();
 
 	double P1_Coord_X, P1_Coord_Y, P2_Coord_X,P2_Coord_Y;
 	double Delta_X, Delta_Y;
-	if (deg <= 0) {}
+	if (deg <= 0) {mexWarnMsgTxt("Degree has to be positive. Use first order instead.\n");}
 	else if (deg >= 20) {mexPrintf("Degree Too Large\n");}
 	else {
 		int id = (deg + 1) * (deg + 2)/2;
+		/*
+		 *  Allocate memory for topology
+		 */
 		topology->nodes.resize(2*( MeshData.numberofpoints +
 				(deg - 1)*MeshData.numberofedges +
 				(id - 3*deg)*MeshData.numberoftriangles));
 
 		topology->elems.resize(((deg + 1) * (deg + 2)/2) * MeshData.numberoftriangles);
 
+		topology->boundary.resize((deg + 1) * MeshData.numberofsegments);
 
+		/*
+		 * Fill nodes
+		 */
 		for (size_t i = 0; i < MeshData.numberofpoints; i++){
 			topology->nodes[2*i] = *(MeshData.pointlist + 2*i);
 			topology->nodes[2*i + 1] = *(MeshData.pointlist + 2*i + 1);
@@ -153,6 +166,7 @@ void Mesh::Promote(int deg){
 		size_t counter = 2*MeshData.numberofpoints + 2*(deg - 1)*MeshData.numberofedges;
 
 		std::unordered_map<std::string, std::vector<int>>::const_iterator Iterator;
+
 		for (size_t index = 0; index < MeshData.numberoftriangles; index++){
 			/*
 			 * Insert vertex
@@ -206,6 +220,8 @@ void Mesh::Promote(int deg){
 			}
 
 
+
+
 			size_t internal_counter = 0;
 			for (size_t i  = 1; i < deg - 1; i++){
 				for (size_t j = 1; j < deg - i; j++){
@@ -227,6 +243,29 @@ void Mesh::Promote(int deg){
 				}
 			}
 		}
+
+		for (size_t index = 0; index < MeshData.numberofsegments; index++){
+			/*
+			 * Orientation reverse
+			 */
+			topology->boundary[(deg + 1)*index + 1] = *(MeshData.segmentlist + 2*index);
+			topology->boundary[(deg + 1)*index    ] = *(MeshData.segmentlist + 2*index + 1);
+			/*
+			 * In order insert the interpolated nodes.
+			 */
+			Iterator = topology->edges.find(std::to_string(topology->boundary[(deg + 1)*index]) + "_" +
+										std::to_string(topology->boundary[(deg + 1)*index + 1]));
+
+			if (Iterator != topology->edges.end()){
+				std::copy(Iterator->second.begin(), Iterator->second.end(), topology->boundary.begin() + (deg + 1)*index + 2);
+			}
+
+			if (Iterator == topology->edges.end()){
+				Iterator = topology->edges.find(std::to_string(topology->boundary[(deg + 1)*index + 1]) + "_" +
+								std::to_string(topology->boundary[(deg + 1)*index]));
+				std::reverse_copy(Iterator->second.begin(), Iterator->second.end(), topology->boundary.begin() + (deg + 1)*index + 2);
+			}
+		}// End of for
 	}
 }
 
@@ -267,6 +306,9 @@ MEX_DEFINE(report)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 	InputArguments input(nrhs, prhs, 1);
 	OutputArguments output(nlhs, plhs, 0);
 	Mesh* mesh = Session<Mesh>::get(input.get(0));
+
+	bool verbose = false;
+
 	mexPrintf("Mesh Generated:\n");
 	mexPrintf("\tPoints  : %15d\n", (*mesh).MeshData.numberofpoints);
 	mexPrintf("\tElements: %15d\n", (*mesh).MeshData.numberoftriangles);
@@ -276,12 +318,44 @@ MEX_DEFINE(report)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 	mexPrintf("\tHoles   : %15d\n", (*mesh).MeshData.numberofholes);
 	mexPrintf("\tCorners : %15d\n", (*mesh).MeshData.numberofcorners);
 
+	if (verbose){
+
+	/*
+	 * Check triangles, if they are oriented.
+	 */
+
+
+		for (size_t index = 0; index < mesh->MeshData.numberoftriangles; index++){
+		   if ((mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index + 2] + 1] -
+				   mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index] + 1])*
+		   (mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index + 1]    ] -
+				   mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index]   ]) -
+		   (mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index + 2]    ] -
+				   mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index]   ])*
+		   (mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index + 1] + 1] -
+				   mesh->MeshData.pointlist[2*mesh->MeshData.trianglelist[3*index] + 1]) > 0){
+
+			   mexPrintf("Oriented\n");
+		   }
+		   else{
+			   mexPrintf("UnOriented\n");
+		   }
+		}
+
+	/*
+	 * Check segments, if they are oriented.
+	 */
+
+
+	}
+
+
 }
 
 // TODO
 MEX_DEFINE(promote)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 	InputArguments input(nrhs, prhs, 2);
-	OutputArguments output(nlhs, plhs, 2);
+	OutputArguments output(nlhs, plhs, 3);
 	Mesh* mesh = Session<Mesh>::get(input.get(0));
 	int deg = input.get<int>(1);
 	mesh->Promote(deg);
@@ -290,6 +364,10 @@ MEX_DEFINE(promote)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) 
 	memcpy(mxGetPr(plhs[0]), &(*mesh).topology->nodes[0], (*mesh).topology->nodes.size()*sizeof(REAL));
 	plhs[1] = mxCreateNumericMatrix((deg + 1)*(deg + 2)/2, (*mesh).topology->elems.size()/((deg + 1)*(deg + 2)/2), mxINT32_CLASS, mxREAL);
 	memcpy(mxGetPr(plhs[1]), &(*mesh).topology->elems[0], (*mesh).topology->elems.size()*sizeof(int));
+
+
+	plhs[2] = mxCreateNumericMatrix((deg + 1), (*mesh).topology->boundary.size()/((deg + 1)), mxINT32_CLASS, mxREAL);
+	memcpy(mxGetPr(plhs[2]), &(*mesh).topology->boundary[0], (*mesh).topology->boundary.size()*sizeof(int));
 }
 
 
@@ -309,9 +387,6 @@ MEX_DEFINE(export)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	plhs[6] = mxCreateNumericMatrix(2, (*mesh).MeshData.numberofedges, mxINT32_CLASS, mxREAL);
 	memcpy(mxGetPr(plhs[6]), (*mesh).MeshData.edgelist ,(*mesh).MeshData.numberofedges*2*sizeof(int));
 }
-
-
-
 } // namespace
 
 

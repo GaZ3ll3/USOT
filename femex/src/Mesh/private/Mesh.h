@@ -48,6 +48,7 @@ typedef	struct Topology {
 		vector<double> nodes;
 		unordered_map<std::string, vector<int>> edges;
 		vector<int>    elems;
+		vector<int>    boundary;
 } Topology;
 
 class Mesh {
