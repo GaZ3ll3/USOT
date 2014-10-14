@@ -134,16 +134,14 @@ MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 		}
 	}
 
-	mxArray** RHS_f;
-	RHS_f = (mxArray **)mxCalloc(2, sizeof(mxArray*));
+	mxArray* RHS_f[2];
 	RHS_f[0] = Vander;
 	RHS_f[1] = VanderF;
 
 	mxArray** LHS_f = &plhs[0];
 	mexCallMATLAB(1, LHS_f, 2, RHS_f, "mldivide");
 
-	mxArray** RHS_x;
-	RHS_x = (mxArray **)mxCalloc(2, sizeof(mxArray*));
+	mxArray* RHS_x[2];
 	RHS_x[0] = Vander;
 	RHS_x[1] = VanderX;
 
@@ -158,7 +156,10 @@ MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 	mxArray** LHS_y = &plhs[2];
 	mexCallMATLAB(1, LHS_y, 2, RHS_y, "mldivide");
 
-
+	mxDestroyArray(Vander);
+	mxDestroyArray(VanderF);
+	mxDestroyArray(VanderX);
+	mxDestroyArray(VanderY);
 }
 
 MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){

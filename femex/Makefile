@@ -84,4 +84,4 @@ $(ASR)%_.mexa64: %.asr.o
 all: $(MESH_BINS) $(ASR_BINS) $(INT_BINS)
 
 clean:
-	rm -rf $(MESH)*_.mexa64 $(INT)*_.mexa64 $(ASR)*_.mexa64 
+	rm -rf $(MESH)*_.mexa64 $(INT)*_.mexa64 $(ASR)*_.mexa64 $(TRIANGLELIB)triangle.o
