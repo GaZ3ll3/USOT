@@ -136,6 +136,8 @@ private:
 		return _meshdata.segmentlist[2 * _index + 1];
 	}
 
+
+
 	void clear() noexcept;
 
 

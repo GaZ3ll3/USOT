@@ -54,10 +54,10 @@ Mesh::Mesh(MatlabPtr _Boundary, MatlabPtr _Area) noexcept{
 	 */
 	mid.trianglearealist = nullptr;
 
-	_meshdata.pointlist = (REAL *) nullptr;
-	_meshdata.pointattributelist = (REAL *) nullptr;
+	_meshdata.pointlist = (Real_t *) nullptr;
+	_meshdata.pointattributelist = (Real_t *) nullptr;
 	_meshdata.trianglelist = (int *) nullptr;
-	_meshdata.triangleattributelist = (REAL *) nullptr;
+	_meshdata.triangleattributelist = (Real_t *) nullptr;
 	_meshdata.edgelist = (int *) nullptr;
 	_meshdata.edgemarkerlist = (int *) nullptr;
 	_meshdata.segmentlist = (int *) nullptr;
@@ -117,8 +117,8 @@ void Mesh::Promote(int32_t _deg) noexcept{
 		 * Fill nodes
 		 */
 		for (int32_t i = 0; i < _meshdata.numberofpoints; i++){
-			topology.nodes[2*i] = *(_meshdata.pointlist + 2*i);
-			topology.nodes[2*i + 1] = *(_meshdata.pointlist + 2*i + 1);
+			topology.nodes[2*i    ] = _Point_X(i);
+			topology.nodes[2*i + 1] = _Point_Y(i);
 		}
 
 		for (int32_t i = 0; i < _meshdata.numberofedges; i++){
@@ -274,14 +274,14 @@ void Mesh::Info() noexcept{
 
 
 int32_t Mesh::Info(const std::string& _string) noexcept{
-	if (_string.compare("nodes")){
+	if (!_string.compare("nodes")){
 		return _meshdata.numberofpoints;
 	}
-	else if (_string.compare("segs")) {
+	else if (!_string.compare("segs")) {
 		return _meshdata.numberofsegments;
 	}
 
-	else if (_string.compare("elems")) {
+	else if (!_string.compare("elems")) {
 		return _meshdata.numberoftriangles;
 	}
 	else {
@@ -343,15 +343,19 @@ MEX_DEFINE(promote)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) 
 	auto mesh = Session<Mesh>::get(input.get(0));
 	auto deg  = input.get<int>(1);
 
-	mexPrintf("%d\n", deg);
+//	mexPrintf("%d\n", deg);
 	mesh->Promote(deg);
 
 	plhs[0] = mxCreateNumericMatrix(2, mesh->topology.nodes.size()/2, mxDOUBLE_CLASS, mxREAL);
-	memcpy(mxGetPr(plhs[0]), &mesh->topology.nodes[0], mesh->topology.nodes.size()*sizeof(REAL));
+	memcpy(mxGetPr(plhs[0]), &mesh->topology.nodes[0], mesh->topology.nodes.size()*sizeof(Real_t));
 	plhs[1] = mxCreateNumericMatrix((deg + 1)*(deg + 2)/2, mesh->topology.elems.size()/((deg + 1)*(deg + 2)/2), mxINT32_CLASS, mxREAL);
 	memcpy(mxGetPr(plhs[1]), &mesh->topology.elems[0], mesh->topology.elems.size()*sizeof(int));
+	MatlabPtr temp_1[] = {plhs[1],mxCreateDoubleScalar(1.0)};
+	mexCallMATLAB(1, &plhs[1], 2, temp_1, "plus");
 	plhs[2] = mxCreateNumericMatrix((deg + 1), mesh->topology.boundary.size()/((deg + 1)), mxINT32_CLASS, mxREAL);
 	memcpy(mxGetPr(plhs[2]), &mesh->topology.boundary[0], mesh->topology.boundary.size()*sizeof(int));
+	MatlabPtr temp_2[] = {plhs[2],mxCreateDoubleScalar(1.0)};
+	mexCallMATLAB(1, &plhs[2], 2, temp_2, "plus");
 }
 
 

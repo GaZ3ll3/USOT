@@ -19,6 +19,8 @@
 #include <mexplus.h>
 #include <pprint.h>
 
+#include "utils.h"
+
 using namespace std;
 using namespace mexplus;
 
@@ -33,6 +35,11 @@ class Assembler {
 public:
 	Assembler();
 	virtual ~Assembler();
+
+	/*
+	 * public methods
+	 */
+	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr&,MatlabPtr,MatlabPtr);
 };
 
 #endif /* ASSEMBLER_PRIVATE_ASSEMBLER_C_ */

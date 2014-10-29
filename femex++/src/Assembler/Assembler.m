@@ -15,8 +15,8 @@ methods
     Assembler_('delete', this.id_);
   end
   
-  function [F, DX, DY] = eval_nodal_info(this, nodes, qnodes)
-  	[F, DX, DY] = Assembler_('evalNodalInfo', this.id_, nodes, qnodes);
+  function [F, DX, DY] = reference(this, nodes, qnodes)
+  	[F, DX, DY] = Assembler_('reference', this.id_, nodes, qnodes);
   end
   
   function [I, J, V] = assema(this, pnodes, pelems, ref_fnk, weights, extern)

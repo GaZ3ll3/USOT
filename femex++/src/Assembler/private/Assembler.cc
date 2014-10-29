@@ -6,30 +6,115 @@
  */
 #include "Assembler.h"
 
-
-#define MAKE_VALUE(pointer) \
-  shared_ptr<mxArray>(pointer, mxDestroyArray)
-// Initialize vector<const mxArray*> rhs.
-#define MAKE_RHS(rhs, ...) \
-  const shared_ptr<mxArray> kFixture[] = { __VA_ARGS__ }; \
-  const size_t kFixtureSize = sizeof(kFixture) / sizeof(shared_ptr<mxArray>); \
-  vector<const mxArray*> rhs(kFixtureSize); \
-  for (int i = 0; i < kFixtureSize; ++i) \
-    rhs[i] = kFixture[i].get();
-// Initialize vector<mxArray*> lhs.
-#define MAKE_LHS(lhs, ...) \
-  const shared_ptr<mxArray> kFixture[] = { __VA_ARGS__ }; \
-  const size_t kFixtureSize = sizeof(kFixture) / sizeof(shared_ptr<mxArray>); \
-  vector<mxArray*> lhs(kFixtureSize); \
-  for (int i = 0; i < kFixtureSize; ++i) \
-    lhs[i] = kFixture[i].get();
-
 Assembler::Assembler(){
 
 
 }
 
 Assembler::~Assembler() {
+
+}
+
+
+/*
+ * Extract information of basis on Reference Triangle
+ */
+void Assembler::Reference(MatlabPtr &F, MatlabPtr &DX, MatlabPtr &DY,
+		MatlabPtr Points, MatlabPtr QPoints){
+
+	std::size_t _numberofpoints = mxGetN(Points);
+	std::size_t _numberofqpoints = mxGetN(QPoints);
+
+	/*
+	 *  Temporary Arrays, will be destroyed later.
+	 */
+	mxArray* Vander = mxCreateNumericMatrix(_numberofpoints,_numberofpoints,mxDOUBLE_CLASS, mxREAL);
+	mxArray* VanderF = mxCreateNumericMatrix(_numberofpoints, _numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+	mxArray* VanderX = mxCreateNumericMatrix(_numberofpoints, _numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+	mxArray* VanderY = mxCreateNumericMatrix(_numberofpoints, _numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+
+
+	int deg = round((sqrt(8*_numberofpoints + 1) - 3)/2);
+
+	if ((deg + 1) * (deg + 2)/2 != _numberofpoints){
+		mexErrMsgTxt("Invalid length of input nodes\n");
+	}
+
+	// extract all nodes from promoted nodes.
+	Real_t* Vander_ptr = mxGetPr(Vander);
+	Real_t* VanderF_ptr = mxGetPr(VanderF);
+	Real_t* VanderX_ptr = mxGetPr(VanderX);
+	Real_t* VanderY_ptr = mxGetPr(VanderY);
+
+	Real_t* nodes_ptr = mxGetPr(Points);
+	Real_t* qnodes_ptr = mxGetPr(QPoints);
+
+	// basis on all nodes
+
+	for (size_t col = 0; col < _numberofpoints; col++){
+		for (size_t i = 0; i < deg + 1; i++){
+			for (size_t j = 0; j < i + 1; j++){
+				*Vander_ptr++ = pow(nodes_ptr[2*col], i - j)*pow(nodes_ptr[2*col + 1], j);
+			}
+		}
+	}
+
+
+
+	// basis on qnodes
+	for (size_t col = 0; col < _numberofqpoints; col++){
+		for (size_t i = 0; i < deg + 1; i++){
+			for (size_t j = 0; j < i + 1; j++){
+				*VanderF_ptr++ = pow(qnodes_ptr[2*col], i - j)*pow(qnodes_ptr[2*col + 1], j);
+			}
+		}
+	}
+
+	// partial x on qnodes
+	for (size_t col = 0; col < _numberofqpoints; col++){
+		for (size_t i = 0; i < deg + 1; i++){
+			for (size_t j = 0; j < i + 1; j++) {
+				if (j == i){
+					*VanderX_ptr++ = 0.;
+				}
+				else{
+					*VanderX_ptr++ = (i - j) * pow(qnodes_ptr[2*col], i - j - 1)*pow(qnodes_ptr[2*col + 1], j);
+				}
+			}
+		}
+	}
+
+	// partial y on qnodes
+	for (size_t col = 0; col < _numberofqpoints; col++){
+		for (size_t i = 0; i < deg + 1; i++){
+			for (size_t j = 0; j < i + 1; j++) {
+				if (j == 0){
+					*VanderY_ptr++ = 0.;
+				}
+				else{
+					*VanderY_ptr++ = j* pow(qnodes_ptr[2*col], i - j)*pow(qnodes_ptr[2*col + 1], j - 1);
+				}
+			}
+		}
+	}
+
+
+
+	mxArray* RHS_f[] = {Vander, VanderF};
+	mexCallMATLAB(1, &F, 2, RHS_f, "mldivide");
+
+	mxArray* RHS_x[] = {Vander, VanderX};
+	mexCallMATLAB(1, &DX, 2, RHS_x, "mldivide");
+
+	mxArray* RHS_y[] = {Vander, VanderY};
+	mexCallMATLAB(1, &DY, 2, RHS_y, "mldivide");
+
+
+	mxDestroyArray(Vander);
+	mxDestroyArray(VanderF);
+	mxDestroyArray(VanderX);
+	mxDestroyArray(VanderY);
+
 
 }
 
@@ -50,7 +135,7 @@ MEX_DEFINE(delete) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) 
 	Session<Assembler>::destroy(input.get(0));
 }
 
-MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
+MEX_DEFINE(reference)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	InputArguments input(nrhs, prhs, 3);
 	OutputArguments output(nlhs, plhs, 3);
 	Assembler* assembler = Session<Assembler>::get(input.get(0));
@@ -62,109 +147,7 @@ MEX_DEFINE(evalNodalInfo)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* pr
 	plhs[1] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 	plhs[2] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 
-/*
- *  Temporary Arrays, will be destroyed later.
- */
-	mxArray* Vander = mxCreateNumericMatrix(numberofpoints,numberofpoints,mxDOUBLE_CLASS, mxREAL);
-	mxArray* VanderF = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
-	mxArray* VanderX = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
-	mxArray* VanderY = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
-
-	int deg = round((sqrt(8*numberofpoints + 1) - 3)/2);
-
-	if ((deg + 1) * (deg + 2)/2 != numberofpoints){
-		mexErrMsgTxt("Invalid length of input nodes\n");
-	}
-
-	// extract all nodes from promoted nodes.
-	double* Vander_ptr = mxGetPr(Vander);
-	double* VanderF_ptr = mxGetPr(VanderF);
-	double* VanderX_ptr = mxGetPr(VanderX);
-	double* VanderY_ptr = mxGetPr(VanderY);
-
-	double* nodes_ptr = mxGetPr(prhs[1]);
-	double* qnodes_ptr = mxGetPr(prhs[2]);
-
-	/*
-	 * nodes is 2 x N matrix
-	 *
-	 * qnodes is 2 x M matrix, with column majority
-	 */
-
-	/*
-	 * Assembler use x decreasing order
-	 */
-	for (size_t col = 0; col < numberofpoints; col++){
-		for (size_t i = 0; i < deg + 1; i++){
-			for (size_t j = 0; j < i + 1; j++){
-				*Vander_ptr++ = pow(*(nodes_ptr + 2*col), i - j)*pow(*(nodes_ptr + 2*col + 1), j);
-			}
-		}
-	}
-
-	for (size_t col = 0; col < numberofqpoints; col++){
-		for (size_t i = 0; i < deg + 1; i++){
-			for (size_t j = 0; j < i + 1; j++){
-				*VanderF_ptr++ = pow(*(qnodes_ptr + 2*col), i - j)*pow(*(qnodes_ptr + 2*col + 1), j);
-			}
-		}
-	}
-
-	for (size_t col = 0; col < numberofqpoints; col++){
-		for (size_t i = 0; i < deg + 1; i++){
-			for (size_t j = 0; j < i + 1; j++) {
-				if (j == i){
-					*VanderX_ptr++ = 0.;
-				}
-				else{
-					*VanderX_ptr++ = (i - j) * pow(*(qnodes_ptr + 2*col), i - j - 1)*pow(*(qnodes_ptr + 2*col + 1), j);
-				}
-			}
-		}
-	}
-
-	for (size_t col = 0; col < numberofqpoints; col++){
-		for (size_t i = 0; i < deg + 1; i++){
-			for (size_t j = 0; j < i + 1; j++) {
-				if (j == 0){
-					*VanderY_ptr++ = 0.;
-				}
-				else{
-					*VanderY_ptr++ = j* pow(*(qnodes_ptr + 2*col), i - j)*pow(*(qnodes_ptr + 2*col + 1), j - 1);
-				}
-			}
-		}
-	}
-
-	mxArray* RHS_f[2];
-	RHS_f[0] = Vander;
-	RHS_f[1] = VanderF;
-
-	mxArray** LHS_f = &plhs[0];
-	mexCallMATLAB(1, LHS_f, 2, RHS_f, "mldivide");
-
-	mxArray* RHS_x[2];
-	RHS_x[0] = Vander;
-	RHS_x[1] = VanderX;
-
-	mxArray** LHS_x = &plhs[1];
-	mexCallMATLAB(1, LHS_x, 2, RHS_x, "mldivide");
-
-	mxArray** RHS_y;
-	RHS_y =  (mxArray **)mxCalloc(2, sizeof(mxArray*));
-	RHS_y[0] = Vander;
-	RHS_y[1] = VanderY;
-
-	mxArray** LHS_y = &plhs[2];
-	mexCallMATLAB(1, LHS_y, 2, RHS_y, "mldivide");
-
-	/*
-	 *Destroy arrays
-	 */
-	mxDestroyArray(Vander);
-	mxDestroyArray(VanderF);
-	mxDestroyArray(VanderX);
-	mxDestroyArray(VanderY);
+	assembler->Reference(plhs[0], plhs[1], plhs[2], const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]));
 }
 
 MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
@@ -175,7 +158,7 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	/*
 	 * all nodes
 	 */
-	double* pnodes_ptr = mxGetPr(prhs[1]);
+	Real_t* pnodes_ptr = mxGetPr(prhs[1]);
 	/*
 	 * all elems
 	 */
@@ -189,8 +172,8 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 *
 	 * better take it as Num of qnodes * Num of basis
 	 */
-	double* reference_x = mxGetPr(prhs[3]);
-	double* reference_y = mxGetPr(prhs[4]);
+	Real_t* reference_x = mxGetPr(prhs[3]);
+	Real_t* reference_y = mxGetPr(prhs[4]);
 	size_t numberofqnodes = mxGetM(prhs[3]);
 
 	if (numberofqnodes != mxGetM(prhs[4])){
@@ -199,7 +182,7 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	/*
 	 * Num of qnodes
 	 */
-	double* weights   = mxGetPr(prhs[5]);
+	Real_t* weights   = mxGetPr(prhs[5]);
 
 	/*
 	 * Num of qnodes * Num of elems
@@ -208,7 +191,7 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	/*
 	 * Pointer not initialized
 	 */
-	double* Interp = (double*) nullptr;
+	Real_t* Interp = (Real_t*) nullptr;
 
 	if (mxIsFunctionHandle(prhs[6])){
 		mexErrMsgTxt("Handle not acceptable yet.\n");
@@ -234,22 +217,22 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 * I
 	 */
 	plhs[0] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pI = mxGetPr(plhs[0]);
+	Real_t* pI = mxGetPr(plhs[0]);
 	/*
 	 * J
 	 */
 	plhs[1] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pJ = mxGetPr(plhs[1]);
+	Real_t* pJ = mxGetPr(plhs[1]);
 	/*
 	 * V
 	 */
 	plhs[2] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pV = mxGetPr(plhs[2]);
+	Real_t* pV = mxGetPr(plhs[2]);
 
 
 	mwSize vertex_1, vertex_2 , vertex_3;
-	double det, area;
-	double Jacobian[2][2];
+	Real_t det, area;
+	Real_t Jacobian[2][2];
 
 	for (size_t i =0; i < numberofelem; i++){
 
@@ -294,7 +277,7 @@ MEX_DEFINE(assema)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	/*
 	 * all nodes
 	 */
-	double* pnodes_ptr = mxGetPr(prhs[1]);
+	Real_t* pnodes_ptr = mxGetPr(prhs[1]);
 	/*
 	 * all elems
 	 */
@@ -308,12 +291,12 @@ MEX_DEFINE(assema)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 *
 	 * better take it as Num of qnodes * Num of basis
 	 */
-	double* reference = mxGetPr(prhs[3]);
+	Real_t* reference = mxGetPr(prhs[3]);
 	size_t numberofqnodes = mxGetM(prhs[3]);
 	/*
 	 * Num of qnodes
 	 */
-	double* weights   = mxGetPr(prhs[4]);
+	Real_t* weights   = mxGetPr(prhs[4]);
 
 	/*
 	 * Num of qnodes * Num of elems
@@ -322,7 +305,7 @@ MEX_DEFINE(assema)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	/*
 	 * Pointer not initialized
 	 */
-	double* Interp = (double*) nullptr;
+	Real_t* Interp = (Real_t*) nullptr;
 
 	if (mxIsFunctionHandle(prhs[5])){
 		mexErrMsgTxt("Handle not acceptable yet.\n");
@@ -349,21 +332,21 @@ MEX_DEFINE(assema)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 * I
 	 */
 	plhs[0] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pI = mxGetPr(plhs[0]);
+	Real_t* pI = mxGetPr(plhs[0]);
 	/*
 	 * J
 	 */
 	plhs[1] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pJ = mxGetPr(plhs[1]);
+	Real_t* pJ = mxGetPr(plhs[1]);
 	/*
 	 * V
 	 */
 	plhs[2] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
-	double* pV = mxGetPr(plhs[2]);
+	Real_t* pV = mxGetPr(plhs[2]);
 
 
 	mwSize vertex_1, vertex_2 , vertex_3;
-	double det, area;
+	Real_t det, area;
 
 	for (size_t i =0; i < numberofelem; i++){
 

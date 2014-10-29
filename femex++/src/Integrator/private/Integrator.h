@@ -26,6 +26,7 @@
 #include <vector>
 #include <cstdlib>
 
+#include "utils.h"
 
 using namespace std;
 using namespace mexplus;
@@ -35,10 +36,16 @@ public:
 	Integrator(int dim, int Degree) {
 		prec = Degree;
 		if (dim == 2){
+			_dim = dim;
 			QuadratureData();
 		}
-		else{
+		else if (dim == 1){
+			_dim = dim;
 			GaussData();
+		}
+		else {
+			_dim = 0;
+			mexErrMsgTxt("Dimension exceeds maximum 2. \n");
 		}
 	}
 	virtual ~Integrator() {}
@@ -46,13 +53,15 @@ public:
 	/*
 	 * public members
 	 */
-	std::vector<double> qwts;
-	std::vector<double> qpts;
+	std::size_t _dim;
+	std::vector<Real_t> qwts;
+	std::vector<Real_t> qpts;
 	std::size_t prec;
 
 	/*
 	 * Evaluate nodal basis function on nodes
 	 */
+private:
 	void QuadratureData();
 	void GaussData();
 

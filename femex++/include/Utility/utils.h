@@ -33,5 +33,4 @@ inline size_t Nsize(MatlabPtr _ptr){
 
 
 
-
 #endif /* INCLUDE_UTILITY_UTILS_H_ */
