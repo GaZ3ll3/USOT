@@ -78,11 +78,22 @@ $(ASR)%_.mexa64: %.asr.o
 	$(CXX) $(MATLAB_LINKS) -o $@ $< $(CXX_LIBS)
 
 
+
+BOD = $(SRC)Boundary/private/
+BOD_SRCS = $(wildcard $(BOD)*.cc)
+BOD_OBJS = $(patsubst $(BOD)%.cc, %.bod.o, $(BOD_SRCS))
+BOD_BINS = $(patsubst $(BOD)%.cc, $(BOD)%_.mexa64, $(BOD_SRCS))
+
+%.bod.o: $(BOD)%.cc
+	$(CXX) -c $(CXX_INCLUDE) $(CXX_FLAGS) $< -o $@
+$(BOD)%_.mexa64: %.bod.o
+	$(CXX) $(MATLAB_LINKS) -o $@ $< $(CXX_LIBS)
+	
 # The action starts here.
 
 # all: $(BIN)MeshGen.mexa64 $(SRC)triangle.o $(BIN)MatrixAssem.mexa64 $(BIN)BCAssem.mexa64 clean
 
-all: $(MESH_BINS) $(ASR_BINS) $(INT_BINS)
+all: $(MESH_BINS) $(ASR_BINS) $(INT_BINS) $(BOD_BINS)
 
 clean:
-	rm -rf $(MESH)*_.mexa64 $(INT)*_.mexa64 $(ASR)*_.mexa64 $(TRIANGLELIB)triangle.o
+	rm -rf $(MESH)*_.mexa64 $(INT)*_.mexa64 $(ASR)*_.mexa64 $(BOD)*._mexa64 $(TRIANGLELIB)triangle.o

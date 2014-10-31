@@ -40,6 +40,8 @@ public:
 	 * public methods
 	 */
 	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr&,MatlabPtr,MatlabPtr);
+	void AssembleMass(Real_t*&, Real_t*&, Real_t*&, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
+	void AssembleStiff(Real_t*&, Real_t*&, Real_t*&,MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
 };
 
 #endif /* ASSEMBLER_PRIVATE_ASSEMBLER_C_ */

@@ -48,7 +48,7 @@ public:
 			mexErrMsgTxt("Dimension exceeds maximum 2. \n");
 		}
 	}
-	virtual ~Integrator() {}
+	virtual ~Integrator() {if (_dim != 0) {clear();}}
 
 	/*
 	 * public members
@@ -64,6 +64,7 @@ public:
 private:
 	void QuadratureData();
 	void GaussData();
+	void clear();
 
 };
 

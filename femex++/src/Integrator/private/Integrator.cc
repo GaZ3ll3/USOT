@@ -8,6 +8,13 @@
 
 #include "Integrator.h"
 
+void Integrator::clear() {
+
+	qpts.clear();
+	qwts.clear();
+
+}
+
 void Integrator::GaussData(){
 
 	if ( prec > 23 ){
