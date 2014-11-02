@@ -27,6 +27,9 @@ methods
   	[I, J, V] = Assembler_('assems', this.id_, pnodes, pelems, ref_gradx, ref_grady, weights, extern);
   end
   
+  function [L] = asseml(this, pnodes, qnodes, pelems, ref, weights, extern) 
+    [L] = Assembler_('asseml', this.id_, pnodes, qnodes, pelems, ref, weights, extern);
+  end
   
   
   % Other methods...

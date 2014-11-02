@@ -175,6 +175,96 @@ void Assembler::AssembleMass(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
 	}
 }
 
+
+// calculate integral on boundary
+void Assembler::AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
+		MatlabPtr QNodes, MatlabPtr Elems,MatlabPtr Ref,
+		MatlabPtr Weights, MatlabPtr Fcn) {
+
+	Real_t*  pnodes_ptr           = mxGetPr(Nodes);
+	Real_t*  qnodes_ptr           = mxGetPr(QNodes);
+	int32_t* pelem_ptr            = (int32_t*)mxGetPr(Elems);
+	Real_t*  reference            = mxGetPr(Ref);
+	Real_t*  weights              = mxGetPr(Weights);
+	Real_t*  Interp               = mxGetPr(Fcn);
+
+	size_t numberofelem           = mxGetN(Elems);
+	size_t numberofnodesperelem   = mxGetM(Elems);
+	size_t numberofqnodes         = mxGetN(Ref);
+
+
+	mwSize vertex_1, vertex_2 , vertex_3;
+	Real_t det, area, tmp;
+
+
+	if(mxIsClass( Fcn , "function_handle")) {
+		// coordinates
+		MatlabPtr _x = mxCreateDoubleScalar(0.);
+		MatlabPtr _y = mxCreateDoubleScalar(0.);
+		MatlabPtr _res = mxCreateDoubleScalar(0.);
+
+		MatlabPtr Fcn_RHS[] = {Fcn, _x, _y};
+		Real_t* _x_ptr = Matlab_Cast<Real_t>(_x);
+		Real_t* _y_ptr = Matlab_Cast<Real_t>(_y);
+
+		for (size_t i =0; i < numberofelem; i++){
+
+			vertex_1 = pelem_ptr[numberofnodesperelem*i] - 1;
+			vertex_2 = pelem_ptr[numberofnodesperelem*i + 1] - 1;
+			vertex_3 = pelem_ptr[numberofnodesperelem*i + 2] - 1;
+
+			det = (pnodes_ptr[vertex_2*2] - pnodes_ptr[vertex_1*2])*(pnodes_ptr[vertex_3*2 + 1] - pnodes_ptr[vertex_1*2 + 1]) -
+					(pnodes_ptr[vertex_2*2 + 1] - pnodes_ptr[vertex_1*2 + 1])*(pnodes_ptr[vertex_3*2] - pnodes_ptr[vertex_1*2]);
+			area = 0.5*fabs(det);
+
+			for (size_t j = 0; j < numberofnodesperelem; j++) {
+				tmp = 0.;
+				for (size_t l = 0; l < numberofqnodes; l++) {
+					*_x_ptr = pnodes_ptr[vertex_1*2]*(1 - qnodes_ptr[2*l] - qnodes_ptr[2*l + 1]) +
+							pnodes_ptr[vertex_2*2]*qnodes_ptr[2*l] +
+							pnodes_ptr[vertex_3*2]*qnodes_ptr[2*l + 1];
+					*_y_ptr =  pnodes_ptr[vertex_1*2 + 1]*(1 - qnodes_ptr[2*l] - qnodes_ptr[2*l + 1]) +
+							pnodes_ptr[vertex_2*2 + 1]*qnodes_ptr[2*l] +
+							pnodes_ptr[vertex_3*2 + 1]*qnodes_ptr[2*l + 1];
+					mexCallMATLAB(1, &_res, 3, Fcn_RHS, "feval");
+					tmp +=  *Matlab_Cast<Real_t>(_res)*reference[j+ l*numberofnodesperelem]*weights[l];
+				}
+				pLoad[pelem_ptr[i*numberofnodesperelem + j] - 1] += tmp*area;
+			}
+		}
+
+		mxDestroyArray(_x);
+		mxDestroyArray(_y);
+		mxDestroyArray(_res);
+	}
+	else {
+		auto Fcn_ptr = Matlab_Cast<Real_t>(Fcn);
+		// linear interpolation
+		for (size_t i =0; i < numberofelem; i++){
+
+			vertex_1 = pelem_ptr[numberofnodesperelem*i] - 1;
+			vertex_2 = pelem_ptr[numberofnodesperelem*i + 1] - 1;
+			vertex_3 = pelem_ptr[numberofnodesperelem*i + 2] - 1;
+
+			det = (pnodes_ptr[vertex_2*2] - pnodes_ptr[vertex_1*2])*(pnodes_ptr[vertex_3*2 + 1] - pnodes_ptr[vertex_1*2 + 1]) -
+					(pnodes_ptr[vertex_2*2 + 1] - pnodes_ptr[vertex_1*2 + 1])*(pnodes_ptr[vertex_3*2] - pnodes_ptr[vertex_1*2]);
+			area = 0.5*fabs(det);
+
+			for (size_t j = 0; j < numberofnodesperelem; j++) {
+				tmp = 0.;
+				for (size_t l = 0; l < numberofqnodes; l++) {
+					tmp +=  (Fcn_ptr[vertex_1] *(1 - qnodes_ptr[2*l] - qnodes_ptr[2*l + 1]) +
+							 Fcn_ptr[vertex_2]*qnodes_ptr[2*l] +
+							 Fcn_ptr[vertex_3]*qnodes_ptr[2*l + 1])*reference[j+ l*numberofnodesperelem]*weights[l];
+				}
+				pLoad[pelem_ptr[i*numberofnodesperelem + j] - 1] += tmp*area;
+			}
+		}
+	}
+
+}
+
+
 void Assembler::AssembleStiff(Real_t* &pI, Real_t* &pJ, Real_t*&pV,
 		MatlabPtr Nodes, MatlabPtr Elems, MatlabPtr RefX,
 		MatlabPtr RefY, MatlabPtr Weights, MatlabPtr Fcn) {
@@ -335,6 +425,21 @@ MEX_DEFINE(assemsa)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	 */
 }
 
+MEX_DEFINE(asseml) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+	InputArguments input(nrhs, prhs, 7);
+	OutputArguments output(nlhs, plhs, 1);
+	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
+	size_t numberofnodes   = mxGetN(prhs[1]);
+
+	plhs[0] = mxCreateNumericMatrix(numberofnodes,1,  mxDOUBLE_CLASS, mxREAL);
+	Real_t* pLoad = mxGetPr(plhs[0]);
+	assembler->AssembleLoad(pLoad, const_cast<MatlabPtr>(prhs[1]),
+			const_cast<MatlabPtr>(prhs[2]), const_cast<MatlabPtr>(prhs[3]),
+			const_cast<MatlabPtr>(prhs[4]), const_cast<MatlabPtr>(prhs[5]),
+			const_cast<MatlabPtr>(prhs[6]));
+
+}
 }
 
 

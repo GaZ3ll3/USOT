@@ -16,6 +16,8 @@
 #include <iterator>
 #include <string.h>
 
+#include <unordered_set>
+
 #include <mexplus.h>
 #include <pprint.h>
 
@@ -30,17 +32,22 @@ enum Boundary_t {DIRICHLET = 0, NEUMANN, ROBIN};
 
 class Boundary {
 public:
-	Boundary(MatlabPtr, MatlabPtr);
+	Boundary(MatlabPtr);
 	virtual ~Boundary();
 
-	// types of boundary
-	Boundary_t      b_type;
 	vector<int32_t> b_edges;
+	unordered_set<int32_t> b_edge_set;
+
 
 	// apply boundary condition on LHS and RHS
-	void apply(MatlabPtr&, MatlabPtr&);
 
 };
+
+class DirichletBC:public Boundary {
+public:
+	explicit DirichletBC(MatlabPtr _edges) : Boundary(_edges) {}
+};
+
 
 } /* namespace MEX */
 

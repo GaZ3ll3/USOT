@@ -5,9 +5,9 @@ properties (Access = private)
 end
 
 methods
-  function this = Boundary(type , edge)
+  function this = Boundary(edge)
   %DATABASE Create a new database.
-    this.id_ = Boundary_('new', type, edge);
+    this.id_ = Boundary_('new', edge);
   end
 
   function delete(this)
@@ -16,8 +16,12 @@ methods
   end
     
   
-  function export(this)
-      Boundary_('export', this.id_);
+  function report(this)
+      Boundary_('report', this.id_);
+  end
+  
+  function dof = dofs(this, N, pedge)
+      dof  = Boundary_('dofs', this.id_, N, pedge);
   end
   % Other methods...
 end

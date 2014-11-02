@@ -42,6 +42,12 @@ public:
 	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr&,MatlabPtr,MatlabPtr);
 	void AssembleMass(Real_t*&, Real_t*&, Real_t*&, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
 	void AssembleStiff(Real_t*&, Real_t*&, Real_t*&,MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
+	void AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
+			MatlabPtr QNodes, MatlabPtr Elems,MatlabPtr Ref,
+			MatlabPtr Weights, MatlabPtr Fcn);
+	void AssembleLoad(Real_t*& pLoad,
+			MatlabPtr Nodes, MatlabPtr Fcn);
+
 };
 
 #endif /* ASSEMBLER_PRIVATE_ASSEMBLER_C_ */
