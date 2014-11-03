@@ -15,8 +15,12 @@ methods
     Assembler_('delete', this.id_);
   end
   
-  function [F, DX, DY] = reference(this, nodes, qnodes)
-  	[F, DX, DY] = Assembler_('reference', this.id_, nodes, qnodes);
+  function [F, DX, DY] = reference2D(this, nodes, qnodes)
+  	[F, DX, DY] = Assembler_('reference2D', this.id_, nodes, qnodes);
+  end
+  
+  function [F, DX] = reference1D(this, deg, qnodes)
+  	[F, DX] = Assembler_('reference1D', this.id_, deg, qnodes);
   end
   
   function [I, J, V] = assema(this, pnodes, pelems, ref_fnk, weights, extern)
@@ -31,8 +35,12 @@ methods
     [L] = Assembler_('asseml', this.id_, pnodes, qnodes, pelems, ref, weights, extern);
   end
   
-  function [C] = qnodes(this, pnodes, qnodes, pelems) 
-  	[C] = Assembler_('qnodes', this.id_, pnodes, qnodes, pelems);
+  function [C] = qnodes2D(this, pnodes, qnodes, pelems) 
+  	[C] = Assembler_('qnodes2D', this.id_, pnodes, qnodes, pelems);
+  end
+  
+  function [C] = qnodes1D(this, pnodes, qnodes, pedges) 
+  	[C] = Assembler_('qnodes1D', this.id_, pnodes, qnodes, pedges);
   end
   
   % Other methods...

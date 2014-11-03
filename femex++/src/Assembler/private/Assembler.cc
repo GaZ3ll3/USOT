@@ -118,6 +118,78 @@ void Assembler::Reference(MatlabPtr &F, MatlabPtr &DX, MatlabPtr &DY,
 
 }
 
+/*
+ * 1D reference
+ */
+void Assembler::Reference(MatlabPtr& F, MatlabPtr& DX, MatlabPtr Degree, MatlabPtr QPoints){
+	// Reference segment [-1 , 1],
+	// with (Degree - 1) equal-spaced points in between.
+
+	auto _numberofpoints = static_cast<int32_t>(*Matlab_Cast<Real_t>(Degree) + 1);
+
+	vector<Real_t> Points(_numberofpoints);
+	Points[0] = -1.;
+	Points[1] = 1. ;
+	for (size_t i = 2; i < _numberofpoints; i++) {
+		Points[i] = (-1.) + 2.0*(i - 1)/static_cast<Real_t>(_numberofpoints - 1);
+	}
+
+	std::cout << Points << std::endl;
+
+
+	// 1D vector-row-majored
+	auto _numberofqpoints = mxGetN(QPoints);
+	auto qnodes_ptr       = mxGetPr(QPoints);
+
+	/*
+	 *  Temporary Arrays, will be destroyed later.
+	 */
+	auto Vander = mxCreateNumericMatrix(_numberofpoints, _numberofpoints ,mxDOUBLE_CLASS, mxREAL);
+	auto VanderF = mxCreateNumericMatrix(_numberofpoints, _numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+	auto VanderX = mxCreateNumericMatrix(_numberofpoints, _numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+
+
+	// extract all nodes from promoted nodes.
+	auto Vander_ptr  = mxGetPr(Vander);
+	auto VanderF_ptr = mxGetPr(VanderF);
+	auto VanderX_ptr = mxGetPr(VanderX);
+
+	for (size_t col = 0; col < _numberofpoints; col++){
+		for (size_t i = 0; i < _numberofpoints; i++){
+			*Vander_ptr++ = pow(Points[col], i);
+		}
+	}
+
+	for (size_t col = 0; col < _numberofqpoints; col++) {
+		for (size_t i = 0; i < _numberofpoints; i++) {
+			*VanderF_ptr++ = pow(qnodes_ptr[col], i);
+		}
+	}
+
+	for (size_t col = 0; col < _numberofqpoints; col++) {
+		for (size_t i = 0 ; i < _numberofpoints ; i++) {
+			if (i == 0) {
+				*VanderX_ptr++ = 0.;
+			}
+			else{
+				*VanderX_ptr++ = pow(qnodes_ptr[col], i - 1);
+			}
+		}
+	}
+
+	mxArray* RHS_f[] = {Vander, VanderF};
+	mexCallMATLAB(1, &F, 2, RHS_f, "mldivide");
+
+	mxArray* RHS_x[] = {Vander, VanderX};
+	mexCallMATLAB(1, &DX, 2, RHS_x, "mldivide");
+
+	Points.clear();
+	mxDestroyArray(Vander);
+	mxDestroyArray(VanderF);
+	mxDestroyArray(VanderX);
+
+}
+
 void Assembler::AssembleMass(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
 		MatlabPtr Nodes, MatlabPtr Elems,MatlabPtr Ref,
 		MatlabPtr Weights, MatlabPtr Fcn){
@@ -175,7 +247,7 @@ void Assembler::AssembleMass(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
 	}
 }
 
-void Assembler::Qnodes(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, MatlabPtr Elems){
+void Assembler::Qnodes2D(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, MatlabPtr Elems){
 
 	auto  pnodes_ptr           = mxGetPr(Nodes);
 	auto  qnodes_ptr           = mxGetPr(QNodes);
@@ -206,6 +278,53 @@ void Assembler::Qnodes(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, Matla
 		}
 	}
 }
+
+
+void Assembler::Qnodes1D(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, MatlabPtr Edges){
+	auto  pnodes_ptr           = mxGetPr(Nodes);
+	auto  qnodes_ptr           = mxGetPr(QNodes);
+	auto  pedge_ptr            = (int32_t*)mxGetPr(Edges);
+
+	auto numberofedges          = mxGetN(Edges);
+	auto numberofnodesperedge   = mxGetM(Edges);
+	auto numberofqnodes         = mxGetN(QNodes);
+
+	mwSize vertex_1, vertex_2;
+
+	if (mxGetM(Nodes) == 1) {
+		// 1D problem
+		for (size_t i = 0; i < numberofedges; i++) {
+			vertex_1 = pedge_ptr[numberofnodesperedge*i] - 1;
+			vertex_2 = pedge_ptr[numberofnodesperedge*i + 1] - 1;
+
+			for (size_t l = 0; l < numberofqnodes; l++) {
+				Coords[(i*numberofqnodes + l)] =
+						pnodes_ptr[vertex_1] + pnodes_ptr[vertex_2] +
+						(pnodes_ptr[vertex_2] - pnodes_ptr[vertex_1])*qnodes_ptr[l];
+
+			}
+		}
+	}
+	else {
+		// 2D problem
+		for (size_t i = 0; i < numberofedges; i++) {
+
+			vertex_1 = pedge_ptr[numberofnodesperedge*i] - 1;
+			vertex_2 = pedge_ptr[numberofnodesperedge*i + 1] - 1;
+
+			for (size_t l = 0; l < numberofqnodes; l++) {
+				Coords[2*(i*numberofqnodes + l)] =
+						(pnodes_ptr[2*vertex_1] + pnodes_ptr[2*vertex_2] +
+						(pnodes_ptr[2*vertex_2] - pnodes_ptr[2*vertex_1])*qnodes_ptr[l])/2.0;
+				Coords[2*(i*numberofqnodes + l) + 1] =
+						(pnodes_ptr[2*vertex_1 + 1] + pnodes_ptr[2*vertex_2 + 1] +
+						(pnodes_ptr[2*vertex_2 + 1] - pnodes_ptr[2*vertex_1 + 1])*qnodes_ptr[l])/2.0;
+			}
+		}
+	}
+
+}
+
 
 
 // calculate integral on boundary
@@ -348,10 +467,11 @@ MEX_DEFINE(delete) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) 
 	Session<Assembler>::destroy(input.get(0));
 }
 
-MEX_DEFINE(reference)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
+MEX_DEFINE(reference2D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	InputArguments input(nrhs, prhs, 3);
 	OutputArguments output(nlhs, plhs, 3);
 	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
 
 	size_t numberofpoints = mxGetN(prhs[1]);
 	size_t numberofqpoints = mxGetN(prhs[2]);
@@ -361,6 +481,23 @@ MEX_DEFINE(reference)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]
 	plhs[2] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
 
 	assembler->Reference(plhs[0], plhs[1], plhs[2], const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]));
+
+
+}
+
+MEX_DEFINE(reference1D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
+	InputArguments input(nrhs, prhs, 3);
+	OutputArguments output(nlhs, plhs, 2);
+	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
+	size_t numberofpoints = static_cast<size_t>(*Matlab_Cast<Real_t>(const_cast<MatlabPtr>(prhs[1])) + 1);
+	mexPrintf("%d\n", numberofpoints);
+	size_t numberofqpoints = mxGetN(prhs[2]);
+
+	plhs[0] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+	plhs[1] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
+	assembler->Reference(plhs[0], plhs[1], const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]));
+
 }
 
 MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
@@ -442,7 +579,7 @@ MEX_DEFINE(asseml) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) 
 
 }
 
-MEX_DEFINE(qnodes)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
+MEX_DEFINE(qnodes2D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	InputArguments input(nrhs, prhs, 4);
 	OutputArguments output(nlhs, plhs, 1);
 	Assembler* assembler = Session<Assembler>::get(input.get(0));
@@ -453,9 +590,26 @@ MEX_DEFINE(qnodes)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 
 	plhs[0] = mxCreateNumericMatrix(2, numberofelem * numberofqnodes,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* Coords = mxGetPr(plhs[0]);
-	assembler->Qnodes(Coords,const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]),
+	assembler->Qnodes2D(Coords,const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]),
 			const_cast<MatlabPtr>(prhs[3]));
 }
+
+MEX_DEFINE(qnodes1D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
+	InputArguments input(nrhs, prhs, 4);
+	OutputArguments output(nlhs, plhs, 1);
+	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
+
+	size_t numberofedges          = mxGetN(prhs[3]);
+	size_t numberofqnodes         = mxGetN(prhs[2]);
+
+	plhs[0] = mxCreateNumericMatrix(mxGetM(prhs[1]), numberofedges * numberofqnodes,  mxDOUBLE_CLASS, mxREAL);
+	Real_t* Coords = mxGetPr(plhs[0]);
+	assembler->Qnodes1D(Coords,const_cast<MatlabPtr>(prhs[1]), const_cast<MatlabPtr>(prhs[2]),
+			const_cast<MatlabPtr>(prhs[3]));
+}
+
+
 }
 
 
