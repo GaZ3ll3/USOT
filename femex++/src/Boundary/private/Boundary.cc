@@ -10,7 +10,7 @@
 namespace MEX {
 
 Boundary::Boundary(MatlabPtr _edges) {
-	// TODO Auto-generated constructor stub
+
 	b_edges.resize(mxGetM(_edges)*mxGetN(_edges));
 	memcpy(&b_edges[0], mxGetPr(_edges), mxGetM(_edges)*mxGetN(_edges)*sizeof(int32_t));
 	for (auto it = b_edges.begin(); it != b_edges.end(); it++) {
@@ -19,7 +19,7 @@ Boundary::Boundary(MatlabPtr _edges) {
 }
 
 Boundary::~Boundary() {
-	// TODO Auto-generated destructor stub
+
 	b_edges.clear();
 	b_edge_set.clear();
 }

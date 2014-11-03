@@ -2,7 +2,7 @@ CXX = g++
 
 CXX_FLAGS = -DMATLAB_MEX_FILE -std=c++11 -fopenmp -march=native \
 			-D_GNU_SOURCE -fPIC -fno-omit-frame-pointer -Wno-write-strings -pthread\
-			-DMX_COMPAT_32 -O -DNDEBUG
+			-DMX_COMPAT_32 -O -DNDEBUG -fopenmp
 
 CXX_INCLUDE = -I./include/mexplus \
 			  -I./include/pprint \
@@ -16,7 +16,7 @@ MATLAB_LINKS = -O -pthread -shared\
 			   -Wl,--no-undefined 
 			   
 CXX_LIBS = -Wl,-rpath-link,/usr/local/MATLAB/MATLAB_Production_Server/R2013a/bin/glnxa64 \
-		   -L/usr/local/MATLAB/MATLAB_Production_Server/R2013a/bin/glnxa64 -lmx -lmex -lmat -lm
+		   -L/usr/local/MATLAB/MATLAB_Production_Server/R2013a/bin/glnxa64 -lmx -lmex -lmat -lm -fopenmp
 		   
 	
 	

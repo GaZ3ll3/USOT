@@ -31,6 +31,9 @@ methods
     [L] = Assembler_('asseml', this.id_, pnodes, qnodes, pelems, ref, weights, extern);
   end
   
+  function [C] = qnodes(this, pnodes, qnodes, pelems) 
+  	[C] = Assembler_('qnodes', this.id_, pnodes, qnodes, pelems);
+  end
   
   % Other methods...
 end

@@ -10,6 +10,8 @@
 
 #include "mex.h"
 
+#include <omp.h>
+
 typedef mxArray* MatlabPtr;
 typedef double   Real_t;
 

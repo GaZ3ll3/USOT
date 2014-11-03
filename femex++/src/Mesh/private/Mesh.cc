@@ -336,7 +336,6 @@ MEX_DEFINE(report)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 	mesh->Info();
 }
 
-// TODO
 MEX_DEFINE(promote)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
 	InputArguments input(nrhs, prhs, 2);
 	OutputArguments output(nlhs, plhs, 3);

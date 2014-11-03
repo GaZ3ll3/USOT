@@ -40,13 +40,23 @@ public:
 	 * public methods
 	 */
 	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr&,MatlabPtr,MatlabPtr);
-	void AssembleMass(Real_t*&, Real_t*&, Real_t*&, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
-	void AssembleStiff(Real_t*&, Real_t*&, Real_t*&,MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
+	void AssembleMass(Real_t*&, Real_t*&, Real_t*&, MatlabPtr, MatlabPtr,
+			MatlabPtr, MatlabPtr, MatlabPtr);
+	void AssembleStiff(Real_t*&, Real_t*&, Real_t*&,MatlabPtr, MatlabPtr,
+			MatlabPtr, MatlabPtr, MatlabPtr, MatlabPtr);
 	void AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
 			MatlabPtr QNodes, MatlabPtr Elems,MatlabPtr Ref,
 			MatlabPtr Weights, MatlabPtr Fcn);
 	void AssembleLoad(Real_t*& pLoad,
 			MatlabPtr Nodes, MatlabPtr Fcn);
+
+	// 1d Integral
+	void Reference(MatlabPtr&, MatlabPtr, MatlabPtr);
+	void AssembleBC(Real_t*& pNeumann, MatlabPtr eNeumann, MatlabPtr Fcn);
+	void AssembleBC(Real_t*& pRobin, MatlabPtr eRobin, MatlabPtr Fcn_1, MatlabPtr Fcn_2);
+
+	// Auxiliary
+	void Qnodes(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, MatlabPtr Elems);
 
 };
 
