@@ -8,6 +8,30 @@
 
 #include "Integrator.h"
 
+Integrator::Integrator(int dim, int Degree){
+	prec = Degree;
+	if (dim == 2){
+		_dim = dim;
+		QuadratureData();
+	}
+	else if (dim == 1){
+		_dim = dim;
+		GaussData();
+	}
+	else {
+		_dim = 0;
+		mexErrMsgTxt("Dimension exceeds maximum 2. \n");
+	}
+}
+
+
+Integrator::~Integrator() {
+	if (_dim != 0) {clear();}
+#ifdef DEBUG
+	mexPrintf("Integrator detached\n");
+#endif
+}
+
 void Integrator::clear() {
 
 	qpts.clear();

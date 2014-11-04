@@ -12,7 +12,9 @@ Assembler::Assembler(){
 }
 
 Assembler::~Assembler() {
-
+#ifdef DEBUG
+	mexPrintf("Assembler detached\n");
+#endif
 }
 
 

@@ -81,6 +81,9 @@ Mesh::Mesh(MatlabPtr _Boundary, MatlabPtr _Area) noexcept{
 
 Mesh::~Mesh() noexcept{
 	clear();
+#ifdef DEBUG
+	mexPrintf("Mesh detached\n");
+#endif
 }
 
 

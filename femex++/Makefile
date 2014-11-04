@@ -1,8 +1,10 @@
 CXX = g++
 
+Opt = -Ofast
+
 CXX_FLAGS = -DMATLAB_MEX_FILE -std=c++11 -fopenmp -march=native \
 			-D_GNU_SOURCE -fPIC -fno-omit-frame-pointer -Wno-write-strings -pthread\
-			-DMX_COMPAT_32 -O -DNDEBUG -fopenmp
+			-DMX_COMPAT_32 $(Opt) -DNDEBUG -fopenmp
 
 CXX_INCLUDE = -I./include/mexplus \
 			  -I./include/pprint \
@@ -11,7 +13,7 @@ CXX_INCLUDE = -I./include/mexplus \
 			  -I/usr/local/MATLAB/MATLAB_Production_Server/R2013a/simulink/include
 
 
-MATLAB_LINKS = -O -pthread -shared\
+MATLAB_LINKS = $(Opt) -pthread -shared\
 			   -Wl,--version-script,/usr/local/MATLAB/MATLAB_Production_Server/R2013a/extern/lib/glnxa64/mexFunction.map \
 			   -Wl,--no-undefined 
 			   
@@ -44,7 +46,7 @@ $(MESH)%_.mexa64: %.mesh.o $(TRIANGLELIB)triangle.o
 	
 # Triangle build
 
-CSWITCHES = -O -DLINUX -fPIC -shared -I/usr/X11R6/include -L/usr/X11R6/lib
+CSWITCHES = $(Opt) -DLINUX -fPIC -shared -I/usr/X11R6/include -L/usr/X11R6/lib
 TRILIBDEFS = -DTRILIBRARY
 
 $(TRIANGLELIB)triangle.o:$(TRIANGLELIB)triangle.c $(TRIANGLELIB)triangle.h

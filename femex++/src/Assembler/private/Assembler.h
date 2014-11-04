@@ -52,7 +52,7 @@ public:
 
 	// 1d Integral
 	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr, MatlabPtr);
-	// TODO
+
 	void AssembleBC(Real_t*& pNeumann,  MatlabPtr Nodes,
 			MatlabPtr QNodes, MatlabPtr eNeumann,
 			MatlabPtr Ref, MatlabPtr Weights,  MatlabPtr Fcn);

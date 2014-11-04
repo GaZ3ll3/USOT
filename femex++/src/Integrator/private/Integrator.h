@@ -33,22 +33,8 @@ using namespace mexplus;
 
 class Integrator {
 public:
-	Integrator(int dim, int Degree) {
-		prec = Degree;
-		if (dim == 2){
-			_dim = dim;
-			QuadratureData();
-		}
-		else if (dim == 1){
-			_dim = dim;
-			GaussData();
-		}
-		else {
-			_dim = 0;
-			mexErrMsgTxt("Dimension exceeds maximum 2. \n");
-		}
-	}
-	virtual ~Integrator() {if (_dim != 0) {clear();}}
+	Integrator(int dim, int Degree) ;
+	virtual ~Integrator() ;
 
 	/*
 	 * public members

@@ -22,6 +22,9 @@ Boundary::~Boundary() {
 
 	b_edges.clear();
 	b_edge_set.clear();
+#ifdef DEBUG
+	mexPrintf("Boundary detached\n");
+#endif
 }
 
 } /* namespace MEX */
