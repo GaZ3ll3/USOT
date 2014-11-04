@@ -1,12 +1,11 @@
 classdef Assembler < handle
-%DATABASE Hypothetical Matlab database API.
+
 properties (Access = private)
   id_ % ID of the session instance.
 end
 
 methods
   function this = Assembler()
-  %DATABASE Create a new database.
     this.id_ = Assembler_('new');
   end
 
@@ -33,6 +32,14 @@ methods
   
   function [L] = asseml(this, pnodes, qnodes, pelems, ref, weights, extern) 
     [L] = Assembler_('asseml', this.id_, pnodes, qnodes, pelems, ref, weights, extern);
+  end
+  
+  function [L] = assemrbc(this, pnodes, qnodes, pedges, ref, weights, extern) 
+    [L] = Assembler_('assemrbc', this.id_, pnodes, qnodes, pedges, ref, weights, extern);
+  end
+  
+  function [I, J, V] = assemlbc(this, pnodes, pedges, ref, weights, extern) 
+    [I, J, V] = Assembler_('assemlbc', this.id_, pnodes, pedges, ref, weights, extern);
   end
   
   function [C] = qnodes2D(this, pnodes, qnodes, pelems) 

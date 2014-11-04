@@ -134,9 +134,6 @@ void Assembler::Reference(MatlabPtr& F, MatlabPtr& DX, MatlabPtr Degree, MatlabP
 		Points[i] = (-1.) + 2.0*(i - 1)/static_cast<Real_t>(_numberofpoints - 1);
 	}
 
-	std::cout << Points << std::endl;
-
-
 	// 1D vector-row-majored
 	auto _numberofqpoints = mxGetN(QPoints);
 	auto qnodes_ptr       = mxGetPr(QPoints);
@@ -188,6 +185,95 @@ void Assembler::Reference(MatlabPtr& F, MatlabPtr& DX, MatlabPtr Degree, MatlabP
 	mxDestroyArray(VanderF);
 	mxDestroyArray(VanderX);
 
+}
+
+void Assembler::AssembleBC(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
+		MatlabPtr Nodes,MatlabPtr eRobin,
+		MatlabPtr Ref, MatlabPtr Weights, MatlabPtr Fcn){
+
+	auto  pnodes_ptr           = mxGetPr(Nodes);
+	auto  pedge_ptr            = (int32_t*)mxGetPr(eRobin);
+	auto  reference            = mxGetPr(Ref);
+	auto  weights              = mxGetPr(Weights);
+	auto  Interp               = mxGetPr(Fcn);
+
+	auto numberofedges          = mxGetN(eRobin);
+	auto numberofnodesperedge   = mxGetM(eRobin);
+	auto numberofqnodes         = mxGetN(Ref);
+
+	mwSize vertex_1, vertex_2;
+	Real_t length;
+
+	for (size_t i = 0; i < numberofedges; i++) {
+
+
+		vertex_1 = pedge_ptr[i*(numberofnodesperedge) ] - 1;
+		vertex_2 = pedge_ptr[i*(numberofnodesperedge) + 1] - 1;
+
+
+		length = sqrt(
+				pow(pnodes_ptr[2*vertex_1] - pnodes_ptr[2*vertex_2], 2)
+				+
+				pow(pnodes_ptr[2*vertex_1 + 1] - pnodes_ptr[2*vertex_2 + 1] , 2));
+
+		for (size_t j = 0 ; j < numberofnodesperedge; j++) {
+			for (size_t k = 0; k < numberofnodesperedge; k++) {
+				*pI++ = pedge_ptr[i*numberofnodesperedge + j];
+				*pJ++ = pedge_ptr[i*numberofnodesperedge + k];
+				*pV = 0.;
+
+				for (size_t l = 0; l < numberofqnodes; l++) {
+					*pV = *pV + Interp[i*numberofqnodes + l] *
+							reference[j + l*numberofnodesperedge] *
+							reference[k + l*numberofnodesperedge] *
+							weights[l];
+				}
+				*pV *= length/2.0; pV++;
+			}
+		}
+	}
+}
+
+
+void Assembler::AssembleBC(Real_t*& pNeumann, MatlabPtr Nodes,
+		MatlabPtr QNodes, MatlabPtr eNeumann,
+		MatlabPtr Ref, MatlabPtr Weights,  MatlabPtr Fcn) {
+	// Fcn needs to be same size as eNeumann * qnodes
+
+	auto  pnodes_ptr           = mxGetPr(Nodes);
+	auto  qnodes_ptr           = mxGetPr(QNodes);
+	auto  pedge_ptr            = (int32_t*)mxGetPr(eNeumann);
+	auto  reference            = mxGetPr(Ref);
+	auto  weights              = mxGetPr(Weights);
+	auto  Interp               = mxGetPr(Fcn);
+
+	auto numberofedges          = mxGetN(eNeumann);
+	auto numberofnodesperedge   = mxGetM(eNeumann);
+	auto numberofqnodes         = mxGetN(Ref);
+
+
+	mwSize vertex_1, vertex_2;
+	Real_t length, tmp;
+
+	for (size_t i = 0; i < numberofedges; i++) {
+		// integral over each interval
+		vertex_1 = pedge_ptr[i*(numberofnodesperedge) ] - 1;
+		vertex_2 = pedge_ptr[i*(numberofnodesperedge) + 1] - 1;
+
+		length = sqrt(
+				pow(pnodes_ptr[2*vertex_1] - pnodes_ptr[2*vertex_2], 2)
+				+
+				pow(pnodes_ptr[2*vertex_1 + 1] - pnodes_ptr[2*vertex_2 + 1] , 2));
+
+		for (size_t j = 0 ; j < numberofnodesperedge; j++) {
+			// each basis
+			tmp = 0.;
+			for (size_t l = 0 ; l < numberofqnodes; l++) {
+				tmp += Interp[i*numberofqnodes + l] * reference[j + l*numberofnodesperedge] * weights[l];
+			}
+			pNeumann[pedge_ptr[i*(numberofnodesperedge) + j] - 1] += tmp * length/2.;
+		}
+	}
 }
 
 void Assembler::AssembleMass(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
@@ -334,7 +420,7 @@ void Assembler::AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
 
 	auto  pnodes_ptr           = mxGetPr(Nodes);
 	auto  qnodes_ptr           = mxGetPr(QNodes);
-	auto pelem_ptr            = (int32_t*)mxGetPr(Elems);
+	auto  pelem_ptr            = (int32_t*)mxGetPr(Elems);
 	auto  reference            = mxGetPr(Ref);
 	auto  weights              = mxGetPr(Weights);
 	auto  Interp               = mxGetPr(Fcn);
@@ -361,7 +447,8 @@ void Assembler::AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
 				(pnodes_ptr[vertex_2*2 + 1] - pnodes_ptr[vertex_1*2 + 1])*(pnodes_ptr[vertex_3*2] - pnodes_ptr[vertex_1*2]);
 		area = 0.5*fabs(det);
 
-		if (mxGetNumberOfElements(Fcn) != mxGetN(Nodes)) {
+		// linear interpolation
+		if (mxGetNumberOfElements(Fcn) == mxGetN(Nodes)) {
 			for (size_t j = 0; j < numberofnodesperelem; j++) {
 				tmp = 0.;
 				for (size_t l = 0; l < numberofqnodes; l++) {
@@ -373,6 +460,7 @@ void Assembler::AssembleLoad(Real_t*& pLoad, MatlabPtr Nodes,
 			}
 		}
 		else {
+			// Fcn has numberofqnodes * numberofelem elements
 			for (size_t j = 0; j < numberofnodesperelem; j++) {
 				tmp = 0.;
 				for (size_t l = 0; l < numberofqnodes; l++) {
@@ -491,7 +579,7 @@ MEX_DEFINE(reference1D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs
 	Assembler* assembler = Session<Assembler>::get(input.get(0));
 
 	size_t numberofpoints = static_cast<size_t>(*Matlab_Cast<Real_t>(const_cast<MatlabPtr>(prhs[1])) + 1);
-	mexPrintf("%d\n", numberofpoints);
+
 	size_t numberofqpoints = mxGetN(prhs[2]);
 
 	plhs[0] = mxCreateNumericMatrix(numberofpoints, numberofqpoints, mxDOUBLE_CLASS, mxREAL);
@@ -505,19 +593,18 @@ MEX_DEFINE(assems)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	OutputArguments output(nlhs, plhs, 3);
 	Assembler* assembler = Session<Assembler>::get(input.get(0));
 
-
 	size_t numberofelem           = mxGetN(prhs[2]);
 	size_t numberofnodesperelem   = mxGetM(prhs[2]);
 	size_t numberofqnodes         = mxGetM(prhs[3]);
 
 
-	plhs[0] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[0] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* pI = mxGetPr(plhs[0]);
 
-	plhs[1] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[1] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* pJ = mxGetPr(plhs[1]);
 
-	plhs[2] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[2] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1, mxDOUBLE_CLASS, mxREAL);
 	Real_t* pV = mxGetPr(plhs[2]);
 
 	assembler->AssembleStiff(pI, pJ, pV, const_cast<MatlabPtr>(prhs[1]),
@@ -538,13 +625,13 @@ MEX_DEFINE(assema)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]){
 	size_t numberofnodesperelem   = mxGetM(prhs[2]);
 	size_t numberofqnodes         = mxGetM(prhs[3]);
 
-	plhs[0] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[0] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* pI = mxGetPr(plhs[0]);
 
-	plhs[1] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[1] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* pJ = mxGetPr(plhs[1]);
 
-	plhs[2] = mxCreateNumericMatrix(1, numberofnodesperelem * numberofnodesperelem * numberofelem, mxDOUBLE_CLASS, mxREAL);
+	plhs[2] = mxCreateNumericMatrix(numberofnodesperelem * numberofnodesperelem * numberofelem, 1,  mxDOUBLE_CLASS, mxREAL);
 	Real_t* pV = mxGetPr(plhs[2]);
 
 	assembler->AssembleMass(pI, pJ, pV, const_cast<MatlabPtr>(prhs[1]),
@@ -609,6 +696,42 @@ MEX_DEFINE(qnodes1D)(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 			const_cast<MatlabPtr>(prhs[3]));
 }
 
+MEX_DEFINE(assemrbc) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+	InputArguments input(nrhs, prhs, 7);
+	OutputArguments output(nlhs, plhs, 1);
+	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
+	size_t numberofnodes   = mxGetN(prhs[1]);
+
+	plhs[0] = mxCreateNumericMatrix(numberofnodes,1,  mxDOUBLE_CLASS, mxREAL);
+	Real_t* pNeumann = mxGetPr(plhs[0]);
+	assembler->AssembleBC(pNeumann, const_cast<MatlabPtr>(prhs[1]),
+			const_cast<MatlabPtr>(prhs[2]), const_cast<MatlabPtr>(prhs[3]),
+			const_cast<MatlabPtr>(prhs[4]), const_cast<MatlabPtr>(prhs[5]),
+			const_cast<MatlabPtr>(prhs[6]));
+
+}
+
+MEX_DEFINE(assemlbc) (int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+	InputArguments input(nrhs, prhs, 6);
+	OutputArguments output(nlhs, plhs, 3);
+	Assembler* assembler = Session<Assembler>::get(input.get(0));
+
+	size_t numberofnodes         = mxGetN(prhs[1]);
+	size_t numberofedges         = mxGetN(prhs[2]);
+	size_t numberofnodesperedges = mxGetM(prhs[2]);
+
+	plhs[0] = mxCreateNumericMatrix(numberofedges * numberofnodesperedges * numberofnodesperedges, 1,  mxDOUBLE_CLASS, mxREAL);
+	plhs[1] = mxCreateNumericMatrix(numberofedges * numberofnodesperedges * numberofnodesperedges, 1,  mxDOUBLE_CLASS, mxREAL);
+	plhs[2] = mxCreateNumericMatrix(numberofedges * numberofnodesperedges * numberofnodesperedges, 1,  mxDOUBLE_CLASS, mxREAL);
+	Real_t* pI = mxGetPr(plhs[0]);
+	Real_t* pJ = mxGetPr(plhs[1]);
+	Real_t* pV = mxGetPr(plhs[2]);
+	assembler->AssembleBC(pI, pJ, pV,  const_cast<MatlabPtr>(prhs[1]),
+			const_cast<MatlabPtr>(prhs[2]), const_cast<MatlabPtr>(prhs[3]),
+			const_cast<MatlabPtr>(prhs[4]), const_cast<MatlabPtr>(prhs[5]));
+
+}
 
 }
 

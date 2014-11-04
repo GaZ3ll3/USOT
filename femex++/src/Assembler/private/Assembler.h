@@ -53,8 +53,12 @@ public:
 	// 1d Integral
 	void Reference(MatlabPtr&, MatlabPtr&, MatlabPtr, MatlabPtr);
 	// TODO
-	void AssembleBC(Real_t*& pNeumann, MatlabPtr eNeumann, MatlabPtr Fcn);
-	void AssembleBC(Real_t*& pRobin, MatlabPtr eRobin, MatlabPtr Fcn_1, MatlabPtr Fcn_2);
+	void AssembleBC(Real_t*& pNeumann,  MatlabPtr Nodes,
+			MatlabPtr QNodes, MatlabPtr eNeumann,
+			MatlabPtr Ref, MatlabPtr Weights,  MatlabPtr Fcn);
+	void AssembleBC(Real_t* &pI, Real_t* &pJ, Real_t* &pV,
+			MatlabPtr Nodes, MatlabPtr eRobin,
+			MatlabPtr Ref, MatlabPtr Weights, MatlabPtr Fcn);
 
 	// Auxiliary
 	void Qnodes2D(Real_t*& Coords, MatlabPtr Nodes, MatlabPtr QNodes, MatlabPtr Elems);
