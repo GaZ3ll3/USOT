@@ -10,7 +10,7 @@ M = sparse(I,J,U);
 k = 50.0;
 j = sqrt(-1);
 sigma = 0.2;
-Q =  S - (k^2 + j*k*sigma) * M;
+Q =  S - (k^2) * M;
 
 % figure(1);
 % triplot(T' + 1, P(1,:), P(2,:));
@@ -52,12 +52,16 @@ L = G(location,:);
 
 [v, d] = eig((eye(size(b, 1)) +  G'*G)\(L'*L));
 
+disp(d(1,1))
+
 Sol(b)=v(:,1);
 
 F= -Q*Sol;
 
 Sol(freenodes) = Q(freenodes, freenodes)\F(freenodes);
 
+
+disp((Sol(location)'*Sol(location))/(Sol'*Sol))
 
 Estimate = zeros(p, 1);
 for i = 1:p
